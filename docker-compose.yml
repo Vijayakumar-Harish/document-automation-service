@@ -6,6 +6,8 @@ services:
       - "8000:8000"
     depends_on:
       - mongo
+    env_file:
+      - .env
     environment:
       - MONGO_URI=mongodb://mongo:27017/assignment
       - JWT_SECRET=KUHE(*kljdfljw30942lakd)
