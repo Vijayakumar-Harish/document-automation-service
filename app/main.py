@@ -33,7 +33,7 @@ async def lifespan(app: FastAPI):
     await app.db.audit_logs.create_index([("userId", 1), ("at", -1)])
     await app.db.tasks.create_index([("userId", 1), ("createdAt", 1)])
     await app.db.documents.create_index([("ownerId", 1)])
-
+    await app.db.rate_limits.create_index("createdAt", expireAfterSeconds=86400)
     yield
 
     safe_close_motor(app.mongodb_client)
