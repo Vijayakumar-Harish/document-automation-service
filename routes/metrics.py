@@ -1,0 +1,23 @@
+from fastapi import APIRouter, Depends
+from app.auth import get_current_user, require_role
+from app.db import get_db
+from datetime import datetime
+
+router = APIRouter(prefix="/v1/metrics", tags=["metrics"])
+
+@router.get("",dependencies=[Depends(require_role("user", "admin", "support", "moderator"))])
+async def metrics(user=Depends(get_current_user)):
+    db = get_db()
+    docs_total = await db.documents.count_documents({"ownerId":user.sub})
+    folders_total = await db.tags.count_documents({"ownerId":user.sub})
+    now = datetime.utcnow()
+    start_month = datetime(now.year, now.month, 1)
+    pipeline = [
+        {"$match":{"userId":user.sub, "action":"run_actions","at":{"$gte":start_month}}},
+        {"$group":{"_id":None, "count":{"$sum":1}}}
+    ]
+    ag = await db.audit_logs.aggregate(pipeline).to_list(length=1)
+    actions_month = ag[0]["count"] if ag else 0
+    start_day = datetime(now.year, now.month, now.day)
+    tasks_today = await db.tasks.count_documents({"userId":user.sub, "createdAt":{"$gte": start_day}})
+    return {"docs_total":docs_total, "folders_total":folders_total, "actions_month":actions_month, "tasks_today":tasks_today}
