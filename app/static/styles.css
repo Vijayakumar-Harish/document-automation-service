@@ -1,0 +1,62 @@
+body {
+  font-family: "Segoe UI", sans-serif;
+  background: #f9fafb;
+  color: #111827;
+  max-width: 1000px;
+  margin: 30px auto;
+}
+
+h1 {
+  text-align: center;
+  color: #2563eb;
+}
+
+.card {
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+  margin-bottom: 20px;
+}
+
+input, textarea, select {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  margin-top: 5px;
+  margin-bottom: 10px;
+}
+
+button {
+  background: #2563eb;
+  color: white;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-right: 10px;
+}
+button:hover { background: #1e40af; }
+
+.logoutBtn { background: #ef4444; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+table th, table td {
+  border-bottom: 1px solid #e5e7eb;
+  padding: 8px;
+  text-align: left;
+}
+
+.output {
+  background: #f3f4f6;
+  padding: 10px;
+  border-radius: 8px;
+  max-height: 250px;
+  overflow-y: auto;
+  font-family: monospace;
+  white-space: pre-wrap;
+}

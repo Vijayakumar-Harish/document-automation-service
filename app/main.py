@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Request
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from contextlib import asynccontextmanager
@@ -10,7 +11,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 import asyncio, time
-
+from app.routers import auth_routes
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     app.mongodb_client = None
@@ -43,7 +44,7 @@ app = FastAPI(title="Senior Backend Assignment", lifespan=lifespan)
 
 ALLOWED_ORIGINS = [
     "http://localhost:3000",
-    "http://127.0.0.1:3000",
+    "http://127.0.0.1:8000",
 ]
 
 app.add_middleware(
@@ -102,6 +103,7 @@ async def track_active_users(request: Request, call_next):
             active_users_gauge.dec()
     return response
 
+app.include_router(auth_routes.router)
 app.include_router(docs.router)
 app.include_router(folders.router)
 app.include_router(actions.router)
@@ -146,3 +148,4 @@ instrumentator = Instrumentator().instrument(app)
 instrumentator.expose(app, endpoint="/metrics", include_in_schema=False)
 
 
+app.mount("/", StaticFiles(directory="app/static", html=True), name="static")

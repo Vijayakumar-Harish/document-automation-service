@@ -373,26 +373,59 @@ async def list_docs(user=Depends(get_current_user)):
     - Support → sees all metadata (read-only)
     """
     db = get_db()
-    list_requests_total.labels(role=user.role).inc()
 
     query = {}
     if user.role == "user":
         query = {"ownerId": user.sub}
 
-    docs = await db.documents.find(
-        query, {"_id": 1, "filename": 1, "mime": 1, "ownerId": 1, "createdAt": 1}
-    ).to_list(None)
+    # --- Lookup tags for each document ---
+    pipeline = [
+        {"$match": query},
+        {
+            "$lookup": {
+                "from": "document_tags",
+                "localField": "_id",
+                "foreignField": "documentId",
+                "as": "doc_tags",
+            }
+        },
+        {
+            "$lookup": {
+                "from": "tags",
+                "localField": "doc_tags.tagId",
+                "foreignField": "_id",
+                "as": "tags_info",
+            }
+        },
+        {
+            "$project": {
+                "_id": 1,
+                "filename": 1,
+                "mime": 1,
+                "ownerId": 1,
+                "createdAt": 1,
+                "tags": "$tags_info.name",
+            }
+        },
+        {"$sort": {"createdAt": -1}},
+    ]
 
-    result = [DocumentModel(**d).model_dump() for d in docs]
+    docs = await db.documents.aggregate(pipeline).to_list(None)
 
-    audit = AuditLogModel(
-        userId=user.sub,
-        action="list_docs",
-        entityType="document",
-        entityId="*",
-        metadata={"count": len(result)},
-        at=now(),
-    )
-    await db.audit_logs.insert_one(audit.model_dump(by_alias=True))
+    # --- Convert ObjectId fields to strings ---
+    for d in docs:
+        d["_id"] = str(d["_id"])
+        if "tags" not in d:
+            d["tags"] = []
 
-    return result
+    # --- Log audit trail ---
+    await db.audit_logs.insert_one({
+        "at": datetime.utcnow(),
+        "userId": user.sub,
+        "action": "list_docs",
+        "entityType": "document",
+        "metadata": {"count": len(docs)},
+    })
+
+    return docs
+

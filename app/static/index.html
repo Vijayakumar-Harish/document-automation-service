@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>📄 Document AI Dashboard</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+  <h1>📁 Document AI Dashboard</h1>
+
+  <!-- Auth Section -->
+  <div class="card" id="authCard">
+    <h3>🔐 Login / Signup</h3>
+    <input id="email" placeholder="Email" />
+    <input id="password" type="password" placeholder="Password" />
+    <div>
+      <button onclick="signup()">📝 Signup</button>
+      <button onclick="login()">🔑 Login</button>
+    </div>
+  </div>
+
+  <!-- Dashboard Section -->
+  <div id="dashboard" style="display:none;">
+    <div class="header">
+      <h3>Welcome, <span id="userEmail"></span> (<span id="userRole"></span>)</h3>
+      <button class="logoutBtn" onclick="logout()">🚪 Logout</button>
+    </div>
+
+    <!-- Admin Panel -->
+    <div id="adminPanel" class="card" style="display:none;">
+      <h3>🛡️ Admin Controls</h3>
+      <button onclick="fetchMetrics()">📊 Load Usage Metrics</button>
+      <canvas id="usageChart" width="400" height="200"></canvas>
+    </div>
+
+    <!-- Upload Section -->
+    <div class="card">
+      <h3>📤 Upload Document</h3>
+      <label><input type="checkbox" id="runOCR" /> Run OCR automatically</label>
+      <input type="file" id="fileInput" />
+      <input id="primaryTag" placeholder="Primary Tag (e.g., invoices)" />
+      <input id="secondaryTags" placeholder="Secondary Tags (comma separated)" />
+      <button onclick="uploadFile()">⬆ Upload</button>
+      <p id="uploadStatus"></p>
+    </div>
+
+    <!-- Document List -->
+    <div class="card">
+      <h3>🗃️ My Documents</h3>
+      <button onclick="loadDocuments()">🔄 Refresh</button>
+      <table id="docTable">
+        <thead>
+          <tr><th>Filename</th><th>Type</th><th>Tags</th><th>Created</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- AI Actions -->
+    <div class="card">
+      <h3>🧠 AI Actions</h3>
+      <select id="scopeType">
+        <option value="tag">Tag</option>
+        <option value="folder">Folder</option>
+      </select>
+      <input id="scopeName" placeholder="Tag or folder name" />
+      <div>
+        <input type="checkbox" id="makeDoc" /> Make Document
+        <input type="checkbox" id="makeCsv" /> Make CSV
+      </div>
+      <textarea id="prompt" placeholder="e.g. Summarize vendor totals and generate CSV..."></textarea>
+      <button onclick="runActions()">🚀 Run AI</button>
+      <div id="resultStatus"></div>
+      <pre id="outputText" class="output"></pre>
+    </div>
+  </div>
+
+  <script src="dashboard.js"></script>
+</body>
+</html>
