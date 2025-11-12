@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from app.auth import get_current_user, require_role
 from app.db import get_db
-from datetime import datetime
+from datetime import datetime, timezone
 
 router = APIRouter(prefix="/v1/metrics", tags=["metrics"])
 
@@ -10,7 +10,7 @@ async def metrics(user=Depends(get_current_user)):
     db = get_db()
     docs_total = await db.documents.count_documents({"ownerId":user.sub})
     folders_total = await db.tags.count_documents({"ownerId":user.sub})
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     start_month = datetime(now.year, now.month, 1)
     pipeline = [
         {"$match":{"userId":user.sub, "action":"run_actions","at":{"$gte":start_month}}},

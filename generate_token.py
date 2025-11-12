@@ -1,3 +1,15 @@
-import jwt
+import datetime, jwt
 
-print(jwt.encode({"sub":"user1", "email":"harish@oneshot.com", "role":"user"}, "KUHE(*kljdfljw30942lakd)", algorithm="HS256"))
+secret = "KUHE(*kljdfljw30942lakd)"
+algo = "HS256"
+now = datetime.datetime.now(datetime.UTC)
+
+payload = {
+    "sub": "user1",
+    "email": "harish@oneshot.com",
+    "role": "user",
+    "iat": now,
+    "exp": now + datetime.timedelta(hours=8)
+}
+
+print(jwt.encode(payload, secret, algorithm=algo))

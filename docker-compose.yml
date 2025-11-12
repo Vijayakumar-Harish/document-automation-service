@@ -11,11 +11,26 @@ services:
     environment:
       - MONGO_URI=mongodb://mongo:27017/assignment
       - JWT_SECRET=KUHE(*kljdfljw30942lakd)
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
   mongo:
     image: mongo:6
     ports:
       - "27017:27017"
     volumes:
       - mongodata:/data/db
+  
+  prometheus:
+    image: prom/prometheus
+    ports:
+      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus/consoles:/etc/prometheus/consoles
+    depends_on:
+      - api
 volumes:
   mongodata:

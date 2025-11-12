@@ -3,15 +3,22 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 import jwt
 from .config import settings
 from .schemas import UserClaims
+from jwt import InvalidTokenError, ExpiredSignatureError
+from .metrics_registry import errors_total
 
 security = HTTPBearer()
 
 async def get_current_user(creds: HTTPAuthorizationCredentials = Security(security)) -> UserClaims:
     token = creds.credentials
     try:
-        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGO])
+        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGO], options={"require":["exp","iat"]})
         return UserClaims(**payload)
+    except ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token has expired")
+    except InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
     except Exception:
+        errors_total.inc()
         raise HTTPException(status_code=401, detail="Invalid token")
 
 

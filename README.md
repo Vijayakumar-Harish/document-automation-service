@@ -122,8 +122,7 @@ POST /v1/webhooks/ocr
 ### ✅ 5. OCR Scanner Integration (GPT-4o Vision)
 
 * Added `/v1/docs/ocr-scan` endpoint.
-* Allows direct upload of **PDF or image**.
-* Converts multi-page PDFs → images → OCR via OpenAI.
+* Allows direct upload of **image**.
 * Auto-classifies text as `official` or `ad`.
 * Saves extracted text to MongoDB.
 * Creates audit log for every OCR scan.

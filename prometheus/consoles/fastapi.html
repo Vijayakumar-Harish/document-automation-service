@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head><title>FastAPI Metrics Dashboard</title></head>
+<body>
+  <h1>FastAPI Dashboard</h1>
+  <ul>
+    <li><a href="/graph?g0.expr=sum(ocr_requests_total)&g0.tab=1">OCR Requests</a></li>
+    <li><a href="/graph?g0.expr=sum(upload_requests_total)&g0.tab=1">Uploads</a></li>
+    <li><a href="/graph?g0.expr=active_users&g0.tab=1">Active Users</a></li>
+    <li><a href="/graph?g0.expr=rate(app_errors_total[5m])&g0.tab=1">Error Rate</a></li>
+    <li><a href="/graph?g0.expr=rate(db_query_latency_seconds_sum[5m]) / rate(db_query_latency_seconds_count[5m])&g0.tab=1">DB Latency</a></li>
+  </ul>
+</body>
+</html>
