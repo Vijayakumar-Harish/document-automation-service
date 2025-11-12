@@ -30,7 +30,7 @@ async def lifespan(app: FastAPI):
                 await asyncio.sleep(2)
         print("❌ MongoDB connection failed after 10 attempts")
 
-    # ✅ Wait for Mongo to be connected before serving requests
+    
     await connect_mongo()
 
     yield
@@ -41,7 +41,6 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Senior Backend Assignment", lifespan=lifespan)
 
-# --- Middleware setup ---
 ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
@@ -103,7 +102,6 @@ async def track_active_users(request: Request, call_next):
             active_users_gauge.dec()
     return response
 
-# --- Routers ---
 app.include_router(docs.router)
 app.include_router(folders.router)
 app.include_router(actions.router)
@@ -118,7 +116,6 @@ async def health(request: Request):
 
     try:
         if db_client:
-            # ✅ Always call ping on client.admin
             await asyncio.wait_for(db_client.admin.command("ping"), timeout=1.5)
             db_status = "connected"
         else:

@@ -17,7 +17,6 @@ def _patch_event_loop():
     asyncio.set_event_loop(loop)
     yield loop
 
-    # Proper teardown: cancel Motor tasks before closing loop
     pending = asyncio.all_tasks(loop)
     for task in pending:
         task.cancel()
@@ -27,7 +26,7 @@ def _patch_event_loop():
         pass
     loop.run_until_complete(loop.shutdown_asyncgens())
     loop.close()
-# ✅ Apply Windows selector event loop policy early
+
 @pytest.fixture(scope="session", autouse=True)
 def _force_selector_loop():
     import sys
@@ -35,7 +34,7 @@ def _force_selector_loop():
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 
-# ✅ Ensure MongoDB client is closed before pytest tears down the loop
+
 @pytest.fixture(scope="session", autouse=True)
 def _cleanup_motor():
     yield
@@ -43,7 +42,7 @@ def _cleanup_motor():
         safe_close_motor(app.mongodb_client)
 
 
-# ✅ HTTP client fixture for async FastAPI app
+
 @pytest_asyncio.fixture
 async def client():
     transport = ASGITransport(app=app)
@@ -51,7 +50,7 @@ async def client():
         yield ac
 
 
-# ✅ Helper to generate JWT tokens
+
 def make_token(sub="user1", email="harish@oneshot.com", role="user"):
     payload = {"sub": sub, "email": email, "role": role}
     return jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGO)

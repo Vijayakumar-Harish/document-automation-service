@@ -119,7 +119,6 @@ async def upload_doc(
 async def get_doc(id: str, user=Depends(get_current_user)):
     db = get_db()
 
-    # Try ObjectId first, fallback to string
     doc_data = None
     if ObjectId.is_valid(id):
         doc_data = await db.documents.find_one({"_id": ObjectId(id)})
@@ -179,13 +178,13 @@ async def ocr_scan_doc(file: UploadFile = File(...), user=Depends(get_current_us
     db = get_db()
     fs = AsyncIOMotorGridFSBucket(db)
 
-    # --- Step 1: Read and validate file ---
+    # --- Read and validate file ---
     file_bytes = await file.read()
     mime_type = file.content_type or "image/png"
     if not mime_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Uploaded file is not an image")
 
-    # --- Step 2: Store file in GridFS ---
+    # --- Store file in GridFS ---
     upload_stream = fs.open_upload_stream(
         file.filename, metadata={"ownerId": user.sub, "contentType": mime_type}
     )
@@ -193,11 +192,11 @@ async def ocr_scan_doc(file: UploadFile = File(...), user=Depends(get_current_us
     await upload_stream.close()
     file_id = upload_stream._id
 
-    # --- Step 3: Prepare image for OpenAI ---
+    # --- Prepare image for OpenAI ---
     file_base64 = base64.b64encode(file_bytes).decode("utf-8")
     image_url = f"data:{mime_type};base64,{file_base64}"
 
-    # --- Step 4: Call OpenAI Vision OCR ---
+    # --- Call OpenAI Vision OCR ---
     extracted_text = ""
     try:
         response = await openai_client.responses.create(
@@ -241,7 +240,7 @@ async def ocr_scan_doc(file: UploadFile = File(...), user=Depends(get_current_us
             }
         )
 
-    # --- Step 5: Save extracted content in DB ---
+    # --- Save extracted content in DB ---
     doc = DocumentModel(
         ownerId=user.sub,
         filename=file.filename,
@@ -251,14 +250,15 @@ async def ocr_scan_doc(file: UploadFile = File(...), user=Depends(get_current_us
         createdAt=now(),
     )
     result = await db.documents.insert_one(doc.model_dump(by_alias=True))
+    print(result.inserted_id, type(result.inserted_id))
     doc_id = result.inserted_id
 
-    # --- Step 6: Classification & unsubscribe ---
+    # --- Classification & unsubscribe ---
     classification = classify_text(extracted_text)
     unsub = extract_unsubscribe(extracted_text)
     target = unsub.get("value") if unsub else None
 
-    # --- Step 7: Audit logging ---
+    # --- Audit logging ---
     await db.audit_logs.insert_one(
         AuditLogModel(
             userId=user.sub,
@@ -270,7 +270,7 @@ async def ocr_scan_doc(file: UploadFile = File(...), user=Depends(get_current_us
         ).model_dump(by_alias=True)
     )
 
-    # --- Step 7.5: Auto-tagging logic ---
+    # --- Auto-tagging logic ---
     primary_tag_name = (classification or "other").lower()
     text_lower = extracted_text.lower()
 
@@ -286,7 +286,6 @@ async def ocr_scan_doc(file: UploadFile = File(...), user=Depends(get_current_us
     if "thank you" in text_lower:
         auto_tags.add("customer")
 
-    # Normalize
     auto_tags = {t.lower().strip() for t in auto_tags}
 
     # --- Upsert + link tags ---
@@ -298,13 +297,13 @@ async def ocr_scan_doc(file: UploadFile = File(...), user=Depends(get_current_us
         return_document=True,
     )
         await db.document_tags.insert_one({
-        "documentId": str(doc_id),
-        "tagId": str(tag_doc["_id"]),
+        "documentId": doc_id,
+        "tagId": tag_doc["_id"],
         "isPrimary": tag_name == primary_tag_name,
         "createdAt": now(),
     })
 
-    # --- Step 8: Rate limit + task generation ---
+    # --- Rate limit + task generation ---
     if classification == "ad":
         today = datetime.now(timezone.utc)
         rate_key = f"{user.sub}:{file.filename}:{today.strftime('%Y-%m-%d')}"
@@ -353,7 +352,7 @@ async def ocr_scan_doc(file: UploadFile = File(...), user=Depends(get_current_us
             "text_preview": extracted_text[:200],
         }
 
-    # --- Step 9: Return response ---
+    # --- Return response ---
     return {
         "classification": classification,
         "tags": list(auto_tags),
@@ -386,7 +385,6 @@ async def list_docs(user=Depends(get_current_user)):
 
     result = [DocumentModel(**d).model_dump() for d in docs]
 
-    # Audit log
     audit = AuditLogModel(
         userId=user.sub,
         action="list_docs",

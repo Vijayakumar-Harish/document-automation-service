@@ -26,10 +26,10 @@ async def ocr_webhook(payload: OCRPayload, user=Depends(get_current_user)):
     db = get_db()
 
     try:
-        # Step 1: Classify OCR text
+        # Classify OCR text
         classification = classify_text(payload.text)
 
-        # Step 2: Audit classification
+        #  Audit classification
         audit_entry = AuditLogModel(
             userId=user.sub,
             action="webhook_ocr",
@@ -40,15 +40,15 @@ async def ocr_webhook(payload: OCRPayload, user=Depends(get_current_user)):
         )
         await db.audit_logs.insert_one(audit_entry.model_dump(by_alias=True))
 
-        # Step 3: Handle non-ad classifications quickly
+        #  Handle non-ad classifications quickly
         if classification != "ad":
             return {"classification": classification}
 
-        # Step 4: Handle unsubscribe extraction for ads
+        #  Handle unsubscribe extraction for ads
         unsub = extract_unsubscribe(payload.text)
         target = unsub.get("value") if unsub else None
 
-        # Step 5: Rate limiting (3 per day)
+        #  Rate limiting (3 per day)
         today = datetime.now(timezone.utc)
         rate_key = f"{user.sub}:{payload.source}:{today.strftime('%Y-%m-%d')}"
 
@@ -67,7 +67,7 @@ async def ocr_webhook(payload: OCRPayload, user=Depends(get_current_user)):
 
         remaining = max(0, 3 - count)
 
-        # Step 6: Create a new task for processing the ad
+        #  Create a new task for processing the ad
         task = TaskModel(
             userId=user.sub,
             sender=payload.source,
@@ -79,7 +79,7 @@ async def ocr_webhook(payload: OCRPayload, user=Depends(get_current_user)):
         )
         task_result = await db.tasks.insert_one(task.model_dump(by_alias=True))
 
-        # Step 7: Audit the new task creation
+        #  Audit the new task creation
         task_audit = AuditLogModel(
             userId=user.sub,
             action="task_create",
@@ -90,7 +90,7 @@ async def ocr_webhook(payload: OCRPayload, user=Depends(get_current_user)):
         )
         await db.audit_logs.insert_one(task_audit.model_dump(by_alias=True))
 
-        # Step 8: Response
+        #  Response
         return {
             "taskId": str(task_result.inserted_id),
             "remaining": remaining,
