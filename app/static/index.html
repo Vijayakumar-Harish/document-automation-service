@@ -1,82 +1,258 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>📄 Document AI Dashboard</title>
-  <link rel="stylesheet" href="styles.css" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-</head>
-<body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document AI Dashboard</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="app">
+      
+      <section id="authCard" class="auth-section">
+        <div class="auth-card">
+          <div class="auth-header">
+            <div class="logo-circle">📄</div>
+            <h1>Document AI Dashboard</h1>
+            <p class="auth-subtitle">Sign in to access your workspace</p>
+          </div>
 
-  <h1>📁 Document AI Dashboard</h1>
+          <div class="auth-inputs">
+            <div class="input-group">
+              <input
+                id="email"
+                type="email"
+                placeholder="Email"
+                autocomplete="username"
+              />
+            </div>
+            <div class="input-group">
+              <input
+                id="password"
+                type="password"
+                placeholder="Password"
+                autocomplete="current-password"
+              />
+            </div>
+          </div>
 
-  <!-- Auth Section -->
-  <div class="card" id="authCard">
-    <h3>🔐 Login / Signup</h3>
-    <input id="email" placeholder="Email" />
-    <input id="password" type="password" placeholder="Password" />
-    <div>
-      <button onclick="signup()">📝 Signup</button>
-      <button onclick="login()">🔑 Login</button>
+          <div class="auth-buttons">
+            <button class="btn btn-primary" onclick="login()">Login</button>
+            <button class="btn btn-outline" onclick="signup()">Sign Up</button>
+          </div>
+
+          <p id="authStatus" class="status-text"></p>
+        </div>
+      </section>
+
+      
+      <section id="dashboard" class="hidden">
+        <header class="navbar">
+          <div class="nav-left">
+            <h2>📄 Document AI Dashboard</h2>
+          </div>
+          <div class="nav-right">
+            <span class="user-info">
+              <span id="userEmail"></span>
+              <span class="user-role">(<span id="userRole"></span>)</span>
+            </span>
+            <span class="credits-badge"
+              >💰 Credits: <span id="creditsUsed">0</span>/<span
+                id="creditsLimit"
+                >50</span
+              ></span
+            >
+            <button
+              id="darkToggle"
+              class="dark-toggle"
+              title="Toggle light/dark"
+            >
+              🌙
+            </button>
+
+            <button class="btn btn-danger small" onclick="logout()">
+              Logout
+            </button>
+          </div>
+        </header>
+
+        <main class="main-content">
+          
+          <div id="adminPanel" class="card hidden">
+            <h3>🛡️ Admin Controls</h3>
+            <div class="card-actions">
+              <button class="btn btn-primary small" onclick="loadAllUsers()">
+                Refresh Users
+              </button>
+            </div>
+            <div class="table-wrapper">
+              <table id="userTable">
+                <thead>
+                  <tr>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Credits Used</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+
+          
+          <div class="card">
+            <h3>📤 Upload Document</h3>
+            <div class="upload-options">
+              <label
+                ><input type="checkbox" id="runOCR" /> Run OCR
+                automatically</label
+              >
+            </div>
+            <input type="file" id="fileInput" />
+            <input id="primaryTag" placeholder="Primary Tag (e.g. invoices)" />
+            <input
+              id="secondaryTags"
+              placeholder="Secondary Tags (comma separated)"
+            />
+            <button class="btn btn-primary" onclick="uploadFile()">
+              Upload
+            </button>
+            <p id="uploadStatus" class="status-text"></p>
+          </div>
+
+          
+          <div class="card">
+            <div class="card-header">
+              <h3>📂 Folders</h3>
+              <button class="btn btn-light small" onclick="loadFolders()">
+                Refresh
+              </button>
+            </div>
+            <div class="table-wrapper">
+              <table id="folderTable">
+                <thead>
+                  <tr>
+                    <th>Tag</th>
+                    <th>Documents</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="card">
+            <h4>Search Documents</h4>
+            <div class="form-row">
+              <input
+                id="searchInput"
+                placeholder="🔍 Search by content, filename, or tags"
+              />
+              <select id="searchScope">
+                <option value="">All</option>
+                <option value="folder">Folders</option>
+                <option value="files">Files</option>
+              </select>
+              <button class="btn btn-primary small" onclick="searchDocs()">
+                Search
+              </button>
+            </div>
+          </div>
+
+          
+          <div class="card">
+            <div class="card-header">
+              <h3>🗃️ My Documents</h3>
+              <button class="btn btn-light small" onclick="loadDocuments()">
+                Refresh
+              </button>
+            </div>
+            <div class="table-wrapper">
+              <table id="docTable">
+                <thead>
+                  <tr>
+                    <th>Filename</th>
+                    <th>Type</th>
+                    <th>Tags</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+
+          
+          <div class="card">
+            <h3>🧠 AI Actions</h3>
+            <div class="ai-controls">
+              <div
+                class="ai-scope"
+                style="
+                  display: flex;
+                  gap: 12px;
+                  align-items: center;
+                  margin-bottom: 12px;
+                "
+              >
+                <select id="scopeType" style="width: 200px">
+                  <option value="tag">Tag</option>
+                  <option value="folder">Folder</option>
+                </select>
+                <input
+                  id="scopeName"
+                  placeholder="Scope name (e.g. invoices)"
+                  style="flex: 1; min-width: 180px"
+                />
+              </div>
+
+              <div
+                class="ai-checkboxes"
+                style="display: flex; gap: 12px; margin-bottom: 12px"
+              >
+                <label
+                  ><input type="checkbox" id="makeDoc" /> Make Document</label
+                >
+                <label><input type="checkbox" id="makeCsv" /> Make CSV</label>
+              </div>
+
+              
+              <input
+                id="prompt"
+                maxlength="200"
+                placeholder="Enter AI instruction (max 200 chars)..."
+              />
+
+              <div style="margin-top: 12px; display: flex; gap: 12px">
+                <button class="btn btn-primary" onclick="runActions()">
+                  Run
+                </button>
+                <button
+                  class="btn btn-outline"
+                  onclick="document.getElementById('prompt').value = ''"
+                >
+                  Clear
+                </button>
+              </div>
+
+              <p
+                id="resultStatus"
+                class="status-text"
+                style="margin-top: 12px"
+              ></p>
+              <pre id="outputText" style="margin-top: 12px"></pre>
+            </div>
+          </div>
+        </main>
+      </section>
     </div>
-  </div>
 
-  <!-- Dashboard Section -->
-  <div id="dashboard" style="display:none;">
-    <div class="header">
-      <h3>Welcome, <span id="userEmail"></span> (<span id="userRole"></span>)</h3>
-      <button class="logoutBtn" onclick="logout()">🚪 Logout</button>
-    </div>
-
-    <!-- Admin Panel -->
-    <div id="adminPanel" class="card" style="display:none;">
-      <h3>🛡️ Admin Controls</h3>
-      <button onclick="fetchMetrics()">📊 Load Usage Metrics</button>
-      <canvas id="usageChart" width="400" height="200"></canvas>
-    </div>
-
-    <!-- Upload Section -->
-    <div class="card">
-      <h3>📤 Upload Document</h3>
-      <label><input type="checkbox" id="runOCR" /> Run OCR automatically</label>
-      <input type="file" id="fileInput" />
-      <input id="primaryTag" placeholder="Primary Tag (e.g., invoices)" />
-      <input id="secondaryTags" placeholder="Secondary Tags (comma separated)" />
-      <button onclick="uploadFile()">⬆ Upload</button>
-      <p id="uploadStatus"></p>
-    </div>
-
-    <!-- Document List -->
-    <div class="card">
-      <h3>🗃️ My Documents</h3>
-      <button onclick="loadDocuments()">🔄 Refresh</button>
-      <table id="docTable">
-        <thead>
-          <tr><th>Filename</th><th>Type</th><th>Tags</th><th>Created</th></tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
-
-    <!-- AI Actions -->
-    <div class="card">
-      <h3>🧠 AI Actions</h3>
-      <select id="scopeType">
-        <option value="tag">Tag</option>
-        <option value="folder">Folder</option>
-      </select>
-      <input id="scopeName" placeholder="Tag or folder name" />
-      <div>
-        <input type="checkbox" id="makeDoc" /> Make Document
-        <input type="checkbox" id="makeCsv" /> Make CSV
-      </div>
-      <textarea id="prompt" placeholder="e.g. Summarize vendor totals and generate CSV..."></textarea>
-      <button onclick="runActions()">🚀 Run AI</button>
-      <div id="resultStatus"></div>
-      <pre id="outputText" class="output"></pre>
-    </div>
-  </div>
-
-  <script src="dashboard.js"></script>
-</body>
+    <script src="dashboard.js"></script>
+  </body>
 </html>

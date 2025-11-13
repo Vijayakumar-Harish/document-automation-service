@@ -10,6 +10,7 @@ from app.metrics_registry import db_query_latency_seconds, errors_total
 from app.config import settings
 from openai import AsyncOpenAI
 from motor.motor_asyncio import AsyncIOMotorGridFSBucket
+from services.usage import get_monthly_usage, charge_user, get_remaining_credits, DEFAULT_CREDIT_LIMIT
 
 router = APIRouter(prefix="/v1/actions", tags=["actions"])
 openai_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
@@ -35,15 +36,13 @@ async def run_openai_agent(prompt: str, mode: str) -> str:
 @router.post("/run", summary="Run scoped AI actions")
 async def run_actions(payload: ActionRequest, user=Depends(get_current_user)):
     db = get_db()
+
+    remaining = await get_remaining_credits(user.sub)
+    if remaining <= 0:
+        raise HTTPException(status_code=402, detail="Credit limit reached. Please upgrade or wait for next month reset.")
+    
     start_time = time.time()
 
-    # --- Record credit usage ---
-    await db.usage.insert_one({
-        "userId": user.sub,
-        "credits_used": settings.CREDITS_PER_ACTION,
-        "action": payload.actions,
-        "createdAt": now(),
-    })
 
     # --- Validate scope ---
     scope = payload.scope
@@ -51,27 +50,44 @@ async def run_actions(payload: ActionRequest, user=Depends(get_current_user)):
         raise HTTPException(status_code=400, detail="Unsupported scope type")
 
     # --- Collect docs in scope ---
-    if scope.type == "folder" and scope.name:
+    if scope.type == "folder":
         docs_query = {"folder": scope.name}
-    elif scope.type == "tag" and scope.name:
-        tag = await db.tags.find_one({"name": scope.name, "ownerId": user.sub})
+
+    elif scope.type == "tag":
+        tag_filter = {"name": scope.name}
+        if user.role != "admin":  # Only restrict normal users
+            tag_filter["ownerId"] = user.sub
+
+        tag = await db.tags.find_one(tag_filter)
         if not tag:
             raise HTTPException(status_code=404, detail="Tag not found")
+
         tag_id = tag["_id"]
 
+        # Now fetch all docs linked to that tag (primary or secondary)
         doc_tags = await db.document_tags.find({
-            "$or": [{"tagId": tag_id}, {"tagId": str(tag_id)}]
+            "$or": [
+                {"tagId": tag_id},
+                {"tagId": str(tag_id)}
+            ]
         }).to_list(None)
+
         if not doc_tags:
             raise HTTPException(status_code=404, detail="No linked documents for this tag")
 
-        doc_ids = [
-            ObjectId(d["documentId"]) if ObjectId.is_valid(str(d["documentId"])) else d["documentId"]
-            for d in doc_tags
-        ]
+        doc_ids = []
+        for d in doc_tags:
+            val = d.get("documentId")
+            if isinstance(val, str) and ObjectId.is_valid(val):
+                doc_ids.append(ObjectId(val))
+            elif isinstance(val, ObjectId):
+                doc_ids.append(val)
+
         docs_query = {"_id": {"$in": doc_ids}}
+
     else:
-        raise HTTPException(status_code=400, detail="Invalid scope input")
+        raise HTTPException(status_code=400, detail="Invalid scope type")
+
 
     # --- Query docs ---
     docs = await db.documents.find(docs_query).to_list(None)
@@ -146,7 +162,6 @@ async def run_actions(payload: ActionRequest, user=Depends(get_current_user)):
         await upload_stream.write(csv_bytes)
         await upload_stream.close()
         gridfs_id = upload_stream._id
-
         result = await db.documents.insert_one({
             "ownerId": user.sub,
             "filename": filename_csv,
@@ -170,8 +185,9 @@ async def run_actions(payload: ActionRequest, user=Depends(get_current_user)):
             "newDocs": response_payload["new_docs"],
         },
     })
-
+    await charge_user(str(user.sub), settings.CREDITS_PER_ACTION)
     return response_payload
+
 @router.get("/usage/month", dependencies=[Depends(require_role("user", "admin"))])
 async def usage_month(user=Depends(get_current_user)):
     db = get_db()
@@ -184,3 +200,22 @@ async def usage_month(user=Depends(get_current_user)):
     ]
     result = await db.usage.aggregate(pipeline).to_list(None)
     return result[0] if result else {"userId": user.sub, "total_credits": 0}
+
+@router.get("/usage/{user_id}", dependencies=[Depends(require_role("admin"))])
+async def get_user_usage(user_id: str):
+    """
+    Returns total credits used by a user for the current month.
+    Only accessible to admins.
+    """
+    total = await get_monthly_usage(user_id)
+    return {"userId": user_id, "total_credits": total}
+
+@router.get("/usage", summary="Get current user’s credit usage")
+async def get_usage(user=Depends(get_current_user)):
+    used = await get_monthly_usage(user.sub)
+    remaining = await get_remaining_credits(user.sub)
+    return {
+        "used": used,
+        "remaining": remaining,
+        "limit": DEFAULT_CREDIT_LIMIT,
+    }

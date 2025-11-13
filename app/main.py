@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-from routes import docs, folders, actions, webhooks, metrics
+from routes import docs, folders, actions, webhooks, metrics, admin
 from app.config import settings
 from app.metrics_registry import active_users_gauge, errors_total
 from prometheus_fastapi_instrumentator import Instrumentator
@@ -12,6 +12,10 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 import asyncio, time
 from app.routers import auth_routes
+from passlib.context import CryptContext
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     app.mongodb_client = None
@@ -33,6 +37,20 @@ async def lifespan(app: FastAPI):
 
     
     await connect_mongo()
+
+    if app.db is not None:
+        existing_admin = await app.db.users.find_one({"role": "admin"})
+        if not existing_admin:
+            hashed_pw = pwd_context.hash("admin123")
+            await app.db.users.insert_one({
+                "email": "admin@oneshot.com",
+                "password": hashed_pw,
+                "role": "admin",
+                "createdAt": datetime.now(timezone.utc)
+            })
+            print("👑 Default admin created → admin@oneshot.com / admin123")
+        else:
+            print(f"ℹ️ Admin exists: {existing_admin.get('email')}")
 
     yield
 
@@ -103,6 +121,7 @@ async def track_active_users(request: Request, call_next):
             active_users_gauge.dec()
     return response
 
+app.include_router(admin.router)
 app.include_router(auth_routes.router)
 app.include_router(docs.router)
 app.include_router(folders.router)

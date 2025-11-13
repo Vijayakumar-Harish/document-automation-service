@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Query
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Query, Form
 from fastapi.responses import JSONResponse, StreamingResponse
 from bson import ObjectId
 from app.auth import get_current_user, require_role
@@ -34,7 +34,7 @@ list_requests_total = Counter(
     "", summary="Upload document", dependencies=[Depends(require_role("user", "admin"))]
 )
 async def upload_doc(
-    primaryTag: str = Query(...),
+    primaryTag: str = Form(...),
     secondaryTags: str = Query(None),
     file: UploadFile = File(...),
     user=Depends(get_current_user),
@@ -44,6 +44,11 @@ async def upload_doc(
     fs = AsyncIOMotorGridFSBucket(db)
 
     file_bytes = await file.read()
+    if not primaryTag.strip():
+        raise HTTPException(status_code=400, detail="Primary tag is required.")
+
+    if file.filename == "":
+        raise HTTPException(status_code=400, detail="No file selected for upload.")
 
     if len(file_bytes) > MAX_UPLOAD_SIZE:
         raise HTTPException(status_code=413, detail="File too large")
@@ -107,6 +112,98 @@ async def upload_doc(
 
     return {"id": str(doc_id), "message": "File uploaded successfully to GridFS"}
 
+@router.get("/search", summary="Full-text search across uploaded documents")
+async def search_documents(
+    q: str = Query(..., description="Search query text"),
+    scope: str | None = Query(None, description="Scope filter: folder|files"),
+    ids: list[str] = Query(default=[], description="Optional list of document IDs to restrict search"),
+    user=Depends(get_current_user),
+):
+    """
+    Full-text and tag-based search.
+    Matches OCR text, filename, and tag names.
+    Works for admin (global) and user (scoped).
+    """
+    db = get_db()
+    q_lower = q.lower().strip()
+    if not q_lower:
+        raise HTTPException(status_code=400, detail="Search query cannot be empty")
+
+    # --- RBAC filter ---
+    base_filter = {}
+    if user.role != "admin":
+        base_filter["ownerId"] = user.sub
+
+    if ids:
+        valid_ids = [ObjectId(i) for i in ids if ObjectId.is_valid(i)]
+        if valid_ids:
+            base_filter["_id"] = {"$in": valid_ids}
+
+    if scope == "files":
+        base_filter["mime"] = {"$ne": "text/plain"}
+
+    print(f"[search] Executing search for '{q_lower}' by user={user.email} role={user.role}")
+
+    # --- Lookup tags via aggregation ---
+    pipeline = [
+        {"$match": base_filter},
+        {
+            "$lookup": {
+                "from": "document_tags",
+                "localField": "_id",
+                "foreignField": "documentId",
+                "as": "tag_links",
+            }
+        },
+        {
+            "$lookup": {
+                "from": "tags",
+                "localField": "tag_links.tagId",
+                "foreignField": "_id",
+                "as": "tags_info",
+            }
+        },
+        {
+            "$project": {
+                "_id": 1,
+                "filename": 1,
+                "mime": 1,
+                "textContent": 1,
+                "createdAt": 1,
+                "tags": "$tags_info.name",
+            }
+        },
+    ]
+
+    docs = await db.documents.aggregate(pipeline).to_list(None)
+    print(f"[search] Found {len(docs)} documents after lookup")
+
+    if not docs:
+        raise HTTPException(status_code=404, detail="No documents found for this user")
+
+    # --- In-memory filter for text, filename, and tag matches ---
+    results = []
+    for d in docs:
+        filename = (d.get("filename") or "").lower()
+        text = (d.get("textContent") or "").lower()
+        tags = [t.lower() for t in d.get("tags", [])]
+
+        if q_lower in filename or q_lower in text or any(q_lower in t for t in tags):
+            results.append({
+                "id": str(d["_id"]),
+                "filename": d.get("filename"),
+                "mime": d.get("mime"),
+                "tags": d.get("tags", []),
+                "text_snippet": (d.get("textContent") or "")[:200],
+                "createdAt": d.get("createdAt"),
+            })
+
+    print(f"[search] Matched {len(results)} results for query='{q_lower}'")
+
+    if not results:
+        raise HTTPException(status_code=404, detail="No documents found for search query")
+
+    return results
 
 @router.get(
     "/{id}",
@@ -166,7 +263,8 @@ async def download_doc(id: str, user=Depends(get_current_user)):
     summary="Upload and OCR via OpenAI Vision",
     dependencies=[Depends(require_role("user", "admin"))],
 )
-async def ocr_scan_doc(file: UploadFile = File(...), user=Depends(get_current_user)):
+async def ocr_scan_doc(file: UploadFile = File(...), primaryTag: str = Form(...),
+    secondaryTags: str = Query(None),user=Depends(get_current_user)):
     """
     OCR Ingestion Endpoint:
     - Uploads an image to GridFS
@@ -177,6 +275,8 @@ async def ocr_scan_doc(file: UploadFile = File(...), user=Depends(get_current_us
     ocr_requests_total.inc()
     db = get_db()
     fs = AsyncIOMotorGridFSBucket(db)
+    if not primaryTag or not primaryTag.strip():
+        raise HTTPException(status_code=400, detail="Primary tag is required for OCR upload.")
 
     # --- Read and validate file ---
     file_bytes = await file.read()
@@ -271,7 +371,7 @@ async def ocr_scan_doc(file: UploadFile = File(...), user=Depends(get_current_us
     )
 
     # --- Auto-tagging logic ---
-    primary_tag_name = (classification or "other").lower()
+    primary_tag_name = (primaryTag or classification or "other").lower()
     text_lower = extracted_text.lower()
 
     auto_tags = {primary_tag_name}
@@ -288,6 +388,7 @@ async def ocr_scan_doc(file: UploadFile = File(...), user=Depends(get_current_us
 
     auto_tags = {t.lower().strip() for t in auto_tags}
 
+
     # --- Upsert + link tags ---
     for tag_name in auto_tags:
         tag_doc = await db.tags.find_one_and_update(
@@ -295,13 +396,15 @@ async def ocr_scan_doc(file: UploadFile = File(...), user=Depends(get_current_us
         {"$setOnInsert": {"createdAt": now()}},
         upsert=True,
         return_document=True,
-    )
+        )
+
         await db.document_tags.insert_one({
         "documentId": doc_id,
         "tagId": tag_doc["_id"],
-        "isPrimary": tag_name == primary_tag_name,
+        "isPrimary": (tag_name == primary_tag_name),
         "createdAt": now(),
-    })
+        })
+
 
     # --- Rate limit + task generation ---
     if classification == "ad":
