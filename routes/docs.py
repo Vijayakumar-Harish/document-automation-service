@@ -38,9 +38,10 @@ async def upload_doc(
     secondaryTags: str = Query(None),
     file: UploadFile = File(...),
     user=Depends(get_current_user),
+    db=Depends(get_db)
 ):
     upload_requests_total.inc()
-    db = get_db()
+    # db = get_db()
     fs = AsyncIOMotorGridFSBucket(db)
 
     file_bytes = await file.read()
@@ -117,14 +118,14 @@ async def search_documents(
     q: str = Query(..., description="Search query text"),
     scope: str | None = Query(None, description="Scope filter: folder|files"),
     ids: list[str] = Query(default=[], description="Optional list of document IDs to restrict search"),
-    user=Depends(get_current_user),
+    user=Depends(get_current_user),db=Depends(get_db)
 ):
     """
     Full-text and tag-based search.
     Matches OCR text, filename, and tag names.
     Works for admin (global) and user (scoped).
     """
-    db = get_db()
+    # db = get_db()
     q_lower = q.lower().strip()
     if not q_lower:
         raise HTTPException(status_code=400, detail="Search query cannot be empty")
@@ -213,8 +214,8 @@ async def search_documents(
 
 
 @router.get("/{id}", dependencies=[Depends(require_role("user", "admin", "support", "moderator"))])
-async def get_doc(id: str, user=Depends(get_current_user)):
-    db = get_db()
+async def get_doc(id: str, user=Depends(get_current_user),db=Depends(get_db)):
+    # db = get_db()
 
     doc_data = None
     if ObjectId.is_valid(id):
@@ -236,8 +237,8 @@ async def get_doc(id: str, user=Depends(get_current_user)):
     summary="Download the document",
     dependencies=[Depends(require_role("user", "admin"))],
 )
-async def download_doc(id: str, user=Depends(get_current_user)):
-    db = get_db()
+async def download_doc(id: str, user=Depends(get_current_user),db=Depends(get_db)):
+    # db = get_db()
     doc_data = await db.documents.find_one({"_id": ObjectId(id)})
     if not doc_data:
         raise HTTPException(status_code=404, detail="Document not found")
@@ -264,7 +265,7 @@ async def download_doc(id: str, user=Depends(get_current_user)):
     dependencies=[Depends(require_role("user", "admin"))],
 )
 async def ocr_scan_doc(file: UploadFile = File(...), primaryTag: str = Form(...),
-    secondaryTags: str = Query(None),user=Depends(get_current_user)):
+    secondaryTags: str = Query(None),user=Depends(get_current_user),db=Depends(get_db)):
     """
     OCR Ingestion Endpoint:
     - Uploads an image to GridFS
@@ -273,7 +274,7 @@ async def ocr_scan_doc(file: UploadFile = File(...), primaryTag: str = Form(...)
     - Schedules tasks if applicable, logs all events
     """
     ocr_requests_total.inc()
-    db = get_db()
+    # db = get_db()
     fs = AsyncIOMotorGridFSBucket(db)
     if not primaryTag or not primaryTag.strip():
         raise HTTPException(status_code=400, detail="Primary tag is required for OCR upload.")
@@ -468,14 +469,14 @@ async def ocr_scan_doc(file: UploadFile = File(...), primaryTag: str = Form(...)
     summary="List all accessible documents",
     dependencies=[Depends(require_role("user", "admin", "support"))],
 )
-async def list_docs(user=Depends(get_current_user)):
+async def list_docs(user=Depends(get_current_user),db=Depends(get_db)):
     """
     Lists documents visible to the authenticated user.
     - Admin → sees all documents
     - User → sees only their own
     - Support → sees all metadata (read-only)
     """
-    db = get_db()
+    # db = get_db()
 
     query = {}
     if user.role == "user":

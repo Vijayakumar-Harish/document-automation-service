@@ -11,7 +11,7 @@ security = HTTPBearer()
 async def get_current_user(creds: HTTPAuthorizationCredentials = Security(security)) -> UserClaims:
     token = creds.credentials
     try:
-        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGO], options={"require":["exp","iat"]})
+        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGO], options={"require":["exp"]})
         return UserClaims(**payload)
     except ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token has expired")

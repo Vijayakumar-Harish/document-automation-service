@@ -13,6 +13,7 @@ from starlette.responses import JSONResponse
 import asyncio, time
 from app.routers import auth_routes
 from passlib.context import CryptContext
+import os
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -20,7 +21,11 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 async def lifespan(app: FastAPI):
     app.mongodb_client = None
     app.db = None
-
+    if os.getenv("PYTEST_CURRENT_TEST"):
+        app.mongodb_client = None
+        app.db = None
+        yield
+        return
     async def connect_mongo():
         for attempt in range(10):
             try:

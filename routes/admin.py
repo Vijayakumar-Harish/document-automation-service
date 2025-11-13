@@ -11,11 +11,11 @@ ALLOWED_ROLES = {"user", "support", "admin"}
 
 
 @router.get("/users", dependencies=[Depends(require_role("admin"))])
-async def list_all_users():
+async def list_all_users(db=Depends(get_db)):
     """
     List all users (admin only).
     """
-    db = get_db()
+    # db = get_db()
     users = await db.users.find({}, {"email": 1, "role": 1, "created_at": 1}).to_list(None)
     return [
         {
@@ -29,8 +29,8 @@ async def list_all_users():
 
 
 @router.post("/users/{user_id}/role", dependencies=[Depends(require_role("admin"))])
-async def change_user_role(user_id: str, new_role: str, admin=Depends(get_current_user)):
-    db = get_db()
+async def change_user_role(user_id: str, new_role: str, admin=Depends(get_current_user),db=Depends(get_db)):
+    # db = get_db()
 
     if new_role not in ALLOWED_ROLES:
         raise HTTPException(status_code=400, detail=f"Invalid role: {new_role}")

@@ -31,17 +31,13 @@ function can(permission) {
   return !!ROLE_PERMISSIONS[user.role]?.[permission];
 }
 
-
 document.addEventListener("DOMContentLoaded", async () => {
-
   if (token) {
     await showDashboard();
   } else {
-
     document.getElementById("authCard")?.classList?.remove?.("hidden");
   }
 });
-
 
 async function signup() {
   const email = (document.getElementById("email") || {}).value;
@@ -70,7 +66,6 @@ async function signup() {
 function extractErrorMessage(data, fallback = "Request failed") {
   if (!data) return fallback;
   if (Array.isArray(data.detail)) {
-
     return data.detail
       .map((e) => `${e.msg} (${e.loc?.join(" → ")})`)
       .join(", ");
@@ -130,7 +125,6 @@ function setAuthStatus(msg) {
   if (s) s.innerText = msg;
 }
 
-
 function emailEl() {
   return document.getElementById("email");
 }
@@ -146,9 +140,7 @@ async function safeJson(res) {
   }
 }
 
-
 async function showDashboard() {
-
   if (!token) {
     return;
   }
@@ -160,7 +152,7 @@ async function showDashboard() {
 
     if (!res.ok) {
       console.warn("/auth/me returned", res.status);
-  
+
       localStorage.removeItem("token");
       token = null;
       setAuthStatus("Session invalid — please login again.");
@@ -169,19 +161,24 @@ async function showDashboard() {
 
     user = await res.json();
 
-
     document.getElementById("authCard")?.classList?.add?.("hidden");
     document.getElementById("dashboard")?.classList?.remove?.("hidden");
 
     document.getElementById("userEmail").innerText =
       user.email || user.sub || "me";
     document.getElementById("userRole").innerText = user.role || "user";
- 
+
     if (user.role === "admin") {
       document.getElementById("adminPanel")?.classList?.remove?.("hidden");
       await loadAllUsers();
     } else {
       document.getElementById("adminPanel")?.classList?.add?.("hidden");
+    }
+    if (can("canViewMetrics")) {
+      document.getElementById("metricsCard")?.classList?.remove?.("hidden");
+      await loadMetrics();
+    } else {
+      document.getElementById("metricsCard")?.classList?.add?.("hidden");
     }
 
     await loadDocuments();
@@ -192,7 +189,6 @@ async function showDashboard() {
     setAuthStatus("❌ Failed to validate session — check console.");
   }
 }
-
 
 async function uploadFile() {
   if (!can("canUpload"))
@@ -215,7 +211,6 @@ async function uploadFile() {
   const formData = new FormData();
   formData.append("file", fileInput.files[0]);
 
-
   if (runOCR) {
     if (primaryTag) formData.append("primaryTag", primaryTag);
     if (secondaryTags) formData.append("secondaryTags", secondaryTags);
@@ -229,14 +224,16 @@ async function uploadFile() {
       const data = await safeJson(res);
       if (!res.ok) {
         let message = "Upload failed";
-  if (Array.isArray(data?.detail)) {
-    message = data.detail.map(e => `${e.msg} (${e.loc?.join(" → ")})`).join(", ");
-  } else if (typeof data?.detail === "string") {
-    message = data.detail;
-  }
-  uploadStatus.innerText = `❌ ${message}`;
-  console.warn("Upload error", data);
-  return;
+        if (Array.isArray(data?.detail)) {
+          message = data.detail
+            .map((e) => `${e.msg} (${e.loc?.join(" → ")})`)
+            .join(", ");
+        } else if (typeof data?.detail === "string") {
+          message = data.detail;
+        }
+        uploadStatus.innerText = `❌ ${message}`;
+        console.warn("Upload error", data);
+        return;
       }
       uploadStatus.innerText = `✅ OCR processed (${
         data.classification || "ok"
@@ -280,7 +277,6 @@ async function uploadFile() {
     }
   }
 }
-
 
 async function loadDocuments() {
   if (!token) return;
@@ -404,7 +400,6 @@ async function loadFolderDocs(tagName) {
   }
 }
 
-
 async function downloadDoc(id) {
   if (!token) return alert("Not authenticated");
   try {
@@ -478,7 +473,6 @@ async function runActions() {
       2
     );
 
-
     const resultArea = document.getElementById("resultStatus");
 
     const oldBtns = resultArea.querySelectorAll(".download-btn");
@@ -510,7 +504,6 @@ async function runActions() {
 }
 
 async function downloadFile(url, filename) {
-
   if (!token) return alert("Not authenticated");
   try {
     const full = url.startsWith("http") ? url : `${BASE_URL}${url}`;
@@ -532,7 +525,6 @@ async function downloadFile(url, filename) {
     alert("❌ Download error — see console");
   }
 }
-
 
 async function loadAllUsers() {
   if (!can("canManageUsers")) return;
@@ -622,7 +614,6 @@ async function loadUserCredits(userId) {
   }
 }
 
-
 function escapeHtml(s) {
   if (s == null) return "";
   return String(s)
@@ -643,7 +634,6 @@ function escapeJsString(s) {
     btn.textContent = isDark ? "☀️" : "🌙";
     btn.title = isDark ? "Switch to light mode" : "Switch to dark mode";
   }
-
 
   const saved = localStorage.getItem("documentai_theme");
   const prefersDark =
@@ -725,5 +715,29 @@ async function searchDocs() {
   } catch (err) {
     console.error("searchDocs error", err);
     tbody.innerHTML = `<tr><td colspan="5">❌ Error during search</td></tr>`;
+  }
+}
+
+
+async function loadMetrics() {
+  if (!can("canViewMetrics")) return;
+
+  try {
+    const res = await fetch(`${BASE_URL}/v1/metrics`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!res.ok) {
+      console.warn("Failed to load metrics", await res.text());
+      return;
+    }
+
+    const m = await res.json();
+    document.getElementById("mDocs").innerText = m.docs_total;
+    document.getElementById("mFolders").innerText = m.folders_total;
+    document.getElementById("mActions").innerText = m.actions_month;
+    document.getElementById("mTasks").innerText = m.tasks_today;
+  } catch (err) {
+    console.error("loadMetrics error", err);
   }
 }

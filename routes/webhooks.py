@@ -14,7 +14,7 @@ router = APIRouter(prefix="/v1/webhooks", tags=["webhooks"])
 
 
 @router.post("/ocr", dependencies=[Depends(require_role("user", "admin"))])
-async def ocr_webhook(payload: OCRPayload, user=Depends(get_current_user)):
+async def ocr_webhook(payload: OCRPayload, user=Depends(get_current_user),db=Depends(get_db)):
     """
     Handles OCR ingestion webhook.
     - Classifies OCR text (e.g., ad, official, spam)
@@ -23,7 +23,7 @@ async def ocr_webhook(payload: OCRPayload, user=Depends(get_current_user)):
     - Logs all actions to audit trail
     """
     webhook_calls_total.inc()
-    db = get_db()
+    # db = get_db()
 
     try:
         # Classify OCR text

@@ -451,3 +451,72 @@ input[type="checkbox"]:checked::after {
   font-weight: 600;
   margin-left: 10px;
 }
+
+
+.metrics-card {
+  margin-top: 10px;
+  animation: fadeIn 0.4s ease;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 18px;
+  margin-top: 12px;
+}
+
+.metric-box {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px;
+  text-align: center;
+  box-shadow: var(--shadow);
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  position: relative;
+}
+
+.metric-box:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 24px rgba(0,0,0,0.10);
+  border-color: var(--primary);
+}
+
+.metric-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+  opacity: 0.9;
+}
+
+.metric-value {
+  font-size: 34px;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 4px;
+}
+
+.metric-label {
+  font-size: 14px;
+  color: var(--muted);
+  letter-spacing: 0.3px;
+}
+
+body.dark-mode .metric-box {
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(255,255,255,0.06);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.55);
+}
+
+body.dark-mode .metric-box:hover {
+  box-shadow: 0 12px 28px rgba(0,0,0,0.75);
+  border-color: rgba(147, 197, 253, 0.5);
+}
+
+body.dark-mode .metric-value {
+  color: #93c5fd;
+}
+
+body.dark-mode .metric-label {
+  color: var(--muted);
+}
+

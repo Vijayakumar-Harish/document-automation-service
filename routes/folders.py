@@ -7,13 +7,13 @@ from bson import ObjectId
 router = APIRouter(prefix="/v1/folders", tags=["folders"])
 
 @router.get("", summary="List all primary-tag folders", dependencies=[Depends(require_role("user", "admin", "support"))])
-async def list_folders(user=Depends(get_current_user)):
+async def list_folders(user=Depends(get_current_user),db=Depends(get_db)):
     """
     Returns a list of all tags (primary-tag folders).
     - Normal users: only their own tags.
     - Admins: tags from all users (global view).
     """
-    db = get_db()
+    # db = get_db()
 
     match_stage = {}
     if user.role == "user":  # regular user sees only their own folders
@@ -68,11 +68,11 @@ async def list_folders(user=Depends(get_current_user)):
 
 
 @router.get("/{tag}/docs", summary="List documents for a specific tag", dependencies=[Depends(require_role("user", "admin"))])
-async def list_docs_by_tag(tag: str, user=Depends(get_current_user)):
+async def list_docs_by_tag(tag: str, user=Depends(get_current_user),db=Depends(get_db)):
     """
     Returns all documents where the given tag is the primary tag (folder view).
     """
-    db = get_db()
+    # db = get_db()
 
     tag_filter = {"name": tag}
     if user.role != "admin":

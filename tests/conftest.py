@@ -1,48 +1,62 @@
+from httpx import ASGITransport, AsyncClient
 import pytest
 import pytest_asyncio
-import asyncio
-from httpx import AsyncClient, ASGITransport
+from motor.motor_asyncio import AsyncIOMotorClient
 from app.main import app
 from app.config import settings
-from app.db_cleanup import safe_close_motor
+from datetime import datetime, timedelta
 import jwt
-import sys
-@pytest.fixture(scope="session", autouse=True)
-def _patch_event_loop():
-    if sys.platform.startswith("win"):
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+from app.db import get_db
 
-    # Create a single event loop for the whole test session
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    yield loop
+TEST_DB_NAME = "test_assignment"
 
-    pending = asyncio.all_tasks(loop)
-    for task in pending:
-        task.cancel()
-    try:
-        loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
-    except Exception:
-        pass
-    loop.run_until_complete(loop.shutdown_asyncgens())
-    loop.close()
+@pytest_asyncio.fixture
+async def test_db():
+    """
+    Create an isolated test DB for every test.
+    """
+    client = AsyncIOMotorClient(settings.MONGO_URI)
+    db = client[TEST_DB_NAME]
 
-@pytest.fixture(scope="session", autouse=True)
-def _force_selector_loop():
-    import sys
-    if sys.platform.startswith("win"):
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    # clean before test
+    for name in await db.list_collection_names():
+        await db[name].delete_many({})
+
+    yield db
+
+    # clean after test
+    for name in await db.list_collection_names():
+        await db[name].drop()
+
+    client.close()
 
 
-
-@pytest.fixture(scope="session", autouse=True)
-def _cleanup_motor():
+@pytest_asyncio.fixture(autouse=True)
+async def override_db_dependency(test_db):
+    """
+    Makes FastAPI use the test DB.
+    """
+    app.override_db = test_db   # <---- used by get_db()
     yield
-    if hasattr(app, "mongodb_client"):
-        safe_close_motor(app.mongodb_client)
+    app.override_db = None
+
+@pytest.fixture(scope="session")
+def anyio_backend():
+    return "asyncio"
 
 
 
+@pytest_asyncio.fixture(autouse=True)
+async def override_db_dependency(test_db):
+    async def _get_test_db():
+        return test_db
+
+    app.dependency_overrides[get_db] = _get_test_db
+    yield
+    app.dependency_overrides.clear()
+# -----------------------------------------------------------
+# HTTP Client
+# -----------------------------------------------------------
 @pytest_asyncio.fixture
 async def client():
     transport = ASGITransport(app=app)
@@ -50,17 +64,30 @@ async def client():
         yield ac
 
 
-
-def make_token(sub="user1", email="harish@oneshot.com", role="user"):
-    payload = {"sub": sub, "email": email, "role": role}
+# -----------------------------------------------------------
+# JWT Token Helper + Fixtures
+# -----------------------------------------------------------
+def _make_token(sub="user1", email="harish@oneshot.com", role="user"):
+    payload = {
+        "sub": sub,
+        "email": email,
+        "role": role,
+        "exp": datetime.utcnow() + timedelta(hours=1)   # 🔥 add expiration
+    }
     return jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGO)
 
 
-@pytest_asyncio.fixture
+@pytest.fixture
+def make_token():
+    """Expose the token generator to tests"""
+    return _make_token
+
+
+@pytest.fixture
 def user_token():
-    return make_token()
+    return _make_token()
 
 
-@pytest_asyncio.fixture
+@pytest.fixture
 def admin_token():
-    return make_token(sub="admin", email="admin@oneshot.com", role="admin")
+    return _make_token(sub="admin", email="admin@oneshot.com", role="admin")

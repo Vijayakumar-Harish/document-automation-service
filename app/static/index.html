@@ -12,7 +12,6 @@
   </head>
   <body>
     <div id="app">
-      
       <section id="authCard" class="auth-section">
         <div class="auth-card">
           <div class="auth-header">
@@ -49,7 +48,6 @@
         </div>
       </section>
 
-      
       <section id="dashboard" class="hidden">
         <header class="navbar">
           <div class="nav-left">
@@ -81,7 +79,6 @@
         </header>
 
         <main class="main-content">
-          
           <div id="adminPanel" class="card hidden">
             <h3>🛡️ Admin Controls</h3>
             <div class="card-actions">
@@ -104,7 +101,41 @@
             </div>
           </div>
 
-          
+          <div id="metricsCard" class="card hidden metrics-card">
+            <div class="card-header">
+              <h3>📊 System Metrics</h3>
+              <button class="btn btn-light small" onclick="loadMetrics()">
+                Refresh
+              </button>
+            </div>
+
+            <div class="metrics-grid">
+              <div class="metric-box">
+                <div class="metric-icon">📄</div>
+                <div class="metric-value" id="mDocs">0</div>
+                <div class="metric-label">Documents Total</div>
+              </div>
+
+              <div class="metric-box">
+                <div class="metric-icon">📁</div>
+                <div class="metric-value" id="mFolders">0</div>
+                <div class="metric-label">Folders Total</div>
+              </div>
+
+              <div class="metric-box">
+                <div class="metric-icon">⚡</div>
+                <div class="metric-value" id="mActions">0</div>
+                <div class="metric-label">Actions This Month</div>
+              </div>
+
+              <div class="metric-box">
+                <div class="metric-icon">📝</div>
+                <div class="metric-value" id="mTasks">0</div>
+                <div class="metric-label">Tasks Today</div>
+              </div>
+            </div>
+          </div>
+
           <div class="card">
             <h3>📤 Upload Document</h3>
             <div class="upload-options">
@@ -125,7 +156,6 @@
             <p id="uploadStatus" class="status-text"></p>
           </div>
 
-          
           <div class="card">
             <div class="card-header">
               <h3>📂 Folders</h3>
@@ -164,7 +194,6 @@
             </div>
           </div>
 
-          
           <div class="card">
             <div class="card-header">
               <h3>🗃️ My Documents</h3>
@@ -188,7 +217,6 @@
             </div>
           </div>
 
-          
           <div class="card">
             <h3>🧠 AI Actions</h3>
             <div class="ai-controls">
@@ -222,7 +250,6 @@
                 <label><input type="checkbox" id="makeCsv" /> Make CSV</label>
               </div>
 
-              
               <input
                 id="prompt"
                 maxlength="200"

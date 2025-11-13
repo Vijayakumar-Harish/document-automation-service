@@ -34,8 +34,8 @@ async def run_openai_agent(prompt: str, mode: str) -> str:
 
 
 @router.post("/run", summary="Run scoped AI actions")
-async def run_actions(payload: ActionRequest, user=Depends(get_current_user)):
-    db = get_db()
+async def run_actions(payload: ActionRequest, user=Depends(get_current_user),db=Depends(get_db)):
+    # db = get_db()
 
     remaining = await get_remaining_credits(user.sub)
     if remaining <= 0:
@@ -189,8 +189,8 @@ async def run_actions(payload: ActionRequest, user=Depends(get_current_user)):
     return response_payload
 
 @router.get("/usage/month", dependencies=[Depends(require_role("user", "admin"))])
-async def usage_month(user=Depends(get_current_user)):
-    db = get_db()
+async def usage_month(user=Depends(get_current_user),db=Depends(get_db)):
+    # db = get_db()
     now_dt = datetime.datetime.utcnow()
     start_of_month = datetime.datetime(now_dt.year, now_dt.month, 1)
 
