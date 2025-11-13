@@ -19,6 +19,7 @@ import io, base64, os, time
 from datetime import datetime, timezone
 from prometheus_client import Counter
 from bson import ObjectId
+from pymongo import ReturnDocument
 
 router = APIRouter(prefix="/v1/docs", tags=["docs"])
 openai_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
@@ -35,7 +36,7 @@ list_requests_total = Counter(
 )
 async def upload_doc(
     primaryTag: str = Form(...),
-    secondaryTags: str = Query(None),
+    secondaryTags: str = Form(None),
     file: UploadFile = File(...),
     user=Depends(get_current_user),
     db=Depends(get_db)
@@ -214,22 +215,65 @@ async def search_documents(
 
 
 @router.get("/{id}", dependencies=[Depends(require_role("user", "admin", "support", "moderator"))])
-async def get_doc(id: str, user=Depends(get_current_user),db=Depends(get_db)):
-    # db = get_db()
+async def get_doc(id: str, user=Depends(get_current_user), db=Depends(get_db)):
 
-    doc_data = None
-    if ObjectId.is_valid(id):
-        doc_data = await db.documents.find_one({"_id": ObjectId(id)})
-    if not doc_data:
-        doc_data = await db.documents.find_one({"_id": id})
+    if not ObjectId.is_valid(id):
+        raise HTTPException(400, "Invalid document ID")
 
-    if not doc_data:
-        raise HTTPException(status_code=404, detail="Document not found")
+    doc_id = ObjectId(id)
 
-    if doc_data.get("ownerId") != user.sub and user.role != "admin":
-        raise HTTPException(status_code=403, detail="Forbidden")
+    pipeline = [
+        {"$match": {"_id": doc_id}},
 
-    return DocumentModel(**doc_data).model_dump()
+        # Fix: convert _id → string before lookup
+        {
+            "$lookup": {
+                "from": "document_tags",
+                "let": {"docIdString": {"$toString": "$_id"}},
+                "pipeline": [
+                    { "$match": { "$expr": { "$eq": ["$documentId", "$$docIdString"] }}}
+                ],
+                "as": "docTags"
+            }
+        },
+        {
+            "$lookup": {
+                "from": "tags",
+                "localField": "docTags.tagId",
+                "foreignField": "_id",
+                "as": "tags"
+            }
+        },
+        {
+            "$project": {
+                "_id": {"$toString": "$_id"},
+                "ownerId": 1,
+                "filename": 1,
+                "mime": 1,
+                "textContent": 1,
+                "classification": 1,
+                "unsubscribeTarget": 1,
+                "gridfsId": {"$toString": "$gridfsId"},
+                "createdAt": 1,
+                "tags": "$tags.name"
+            }
+        }
+    ]
+
+    result = await db.documents.aggregate(pipeline).to_list(1)
+    if not result:
+        raise HTTPException(404, "Document not found")
+
+    doc = result[0]
+
+    if doc["ownerId"] != user.sub and user.role != "admin":
+        raise HTTPException(403, "Forbidden")
+
+    if isinstance(doc["createdAt"], datetime):
+        doc["createdAt"] = doc["createdAt"].isoformat()
+
+    return doc
+
 
 
 @router.get(
@@ -370,6 +414,16 @@ async def ocr_scan_doc(file: UploadFile = File(...), primaryTag: str = Form(...)
             at=now(),
         ).model_dump(by_alias=True)
     )
+    await db.documents.update_one(
+    {"_id": doc_id},
+    {
+        "$set": {
+            "classification": classification,
+            "unsubscribeTarget": target
+        }
+    }
+)
+
 
     # --- Auto-tagging logic ---
     primary_tag_name = (primaryTag or classification or "other").lower()
@@ -396,11 +450,11 @@ async def ocr_scan_doc(file: UploadFile = File(...), primaryTag: str = Form(...)
         {"ownerId": user.sub, "name": tag_name},
         {"$setOnInsert": {"createdAt": now()}},
         upsert=True,
-        return_document=True,
+        return_document=ReturnDocument.AFTER,
         )
 
         await db.document_tags.insert_one({
-        "documentId": doc_id,
+        "documentId": str(doc_id),
         "tagId": tag_doc["_id"],
         "isPrimary": (tag_name == primary_tag_name),
         "createdAt": now(),

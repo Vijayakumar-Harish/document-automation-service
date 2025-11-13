@@ -520,3 +520,55 @@ body.dark-mode .metric-label {
   color: var(--muted);
 }
 
+/* Document Details Panel */
+.doc-details-card {
+  animation: fadeIn 0.4s ease;
+}
+
+.doc-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.ocr-title {
+  margin-top: 16px;
+  margin-bottom: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.ocr-box {
+  background: #f9fafb;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  max-height: 260px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  box-shadow: var(--shadow);
+}
+
+body.dark-mode .ocr-box {
+  background: #0b1220;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.badge {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 12px;
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+body.dark-mode .badge {
+  background: rgba(147, 197, 253, 0.15);
+  color: #93c5fd;
+}

@@ -245,15 +245,16 @@ async function uploadFile() {
       uploadStatus.innerText = "❌ Upload error — see console";
     }
   } else {
-    const url = `${BASE_URL}/v1/docs?primaryTag=${encodeURIComponent(
-      primaryTag || ""
-    )}&secondaryTags=${encodeURIComponent(secondaryTags || "")}`;
+    formData.append("primaryTag", primaryTag);
+    if (secondaryTags) formData.append("secondaryTags", secondaryTags);
+
     try {
-      const res = await fetch(url, {
+      const res = await fetch(`${BASE_URL}/v1/docs`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` }, // don't set Content-Type
+        headers: { Authorization: `Bearer ${token}` }, // no Content-Type
         body: formData,
       });
+
       const data = await safeJson(res);
       if (!res.ok) {
         let message = "Upload failed";
@@ -268,6 +269,7 @@ async function uploadFile() {
         console.warn("Upload error", data);
         return;
       }
+
       uploadStatus.innerText = `✅ Uploaded successfully`;
       await loadDocuments();
       await loadFolders();
@@ -316,7 +318,10 @@ async function loadDocuments() {
           Array.isArray(tags) ? tags.join(", ") : tags || "-"
         )}</td>
         <td>${escapeHtml(created)}</td>
-        <td><button class="btn btn-light small" onclick="downloadDoc('${id}')">📥 Download</button></td>
+        <td>
+  <button class="btn btn-light small" onclick="downloadDoc('${id}')">📥 Download</button>
+  <button class="btn btn-light small" onclick="showDocDetails('${id}')">👁 View</button>
+</td>
       `;
       tbody.appendChild(tr);
     });
@@ -718,7 +723,6 @@ async function searchDocs() {
   }
 }
 
-
 async function loadMetrics() {
   if (!can("canViewMetrics")) return;
 
@@ -741,3 +745,44 @@ async function loadMetrics() {
     console.error("loadMetrics error", err);
   }
 }
+
+async function showDocDetails(id) {
+  if (!token) return alert("Not authenticated");
+
+  try {
+    const res = await fetch(`${BASE_URL}/v1/docs/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const d = await safeJson(res);
+    if (!res.ok) {
+      return alert("❌ Failed to load details: " + (d.detail || res.status));
+    }
+
+    // Populate details
+    document.getElementById("detFilename").innerText = d.filename || "-";
+    document.getElementById("detMime").innerText = d.mime || "-";
+    document.getElementById("detTags").innerText =
+      (d.tags || []).join(", ") || "-";
+
+    // classification badge
+    document.getElementById("detClass").innerText =
+      d.classification || "unknown";
+    document.getElementById("detClass").className = "badge";
+
+    document.getElementById("detTarget").innerText = d.unsubscribeTarget || "-";
+    document.getElementById("detText").innerText =
+      d.textContent || "(No OCR text found)";
+
+    // show panel
+    document.getElementById("docDetailsCard").classList.remove("hidden");
+  } catch (err) {
+    console.error("showDocDetails error", err);
+    alert("❌ Error loading document details");
+  }
+}
+
+function hideDocDetails() {
+  document.getElementById("docDetailsCard").classList.add("hidden");
+}
+

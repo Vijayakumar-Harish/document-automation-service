@@ -216,6 +216,24 @@
               </table>
             </div>
           </div>
+<div id="docDetailsCard" class="card hidden doc-details-card">
+  <div class="card-header">
+    <h3>📑 Document Details</h3>
+    <button class="btn btn-light small" onclick="hideDocDetails()">✖ Close</button>
+  </div>
+
+  <div class="doc-meta-grid">
+    <div><strong>Filename:</strong> <span id="detFilename">-</span></div>
+    <div><strong>MIME:</strong> <span id="detMime">-</span></div>
+    <div><strong>Tags:</strong> <span id="detTags">-</span></div>
+    <div><strong>Classification:</strong> <span id="detClass" class="badge"></span></div>
+    <div><strong>Unsubscribe Target:</strong> <span id="detTarget">-</span></div>
+  </div>
+
+  <h4 class="ocr-title">Extracted Text (OCR)</h4>
+  <pre id="detText" class="ocr-box"></pre>
+</div>
+
 
           <div class="card">
             <h3>🧠 AI Actions</h3>

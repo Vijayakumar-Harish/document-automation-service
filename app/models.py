@@ -43,6 +43,9 @@ class DocumentModel(MongoModel):
     textContent: Optional[str] = None
     createdAt: datetime.datetime
 
+    class Config:
+        extra = "allow"
+
 
 
 class TagModel(MongoModel):
