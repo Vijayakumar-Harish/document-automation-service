@@ -237,6 +237,7 @@ curl -X POST "http://localhost:8000/v1/docs/ocr-scan" \
 | ----------------- | ----------------------------------------------------------------------- |
 | **Day 1**         | Project setup, Docker, MongoDB schema, CRUD OPERATIONS and OPENAI Integration|
 | **Day 2**         | Added OCR Ingestion, automatic doc classification, tagging, Prometheus metrics, download endpoints, and simple frontend dashboard|
+| **Day 3**         | Implemented document detail view, saved OCR metadata(classification + unsubscribe target), fixed tag linking system, improved OCR endpoint, and fully integrated metadata into UI|
 
 
 ---
