@@ -1,5 +1,3 @@
-# tests/test_webhooks.py
-
 async def test_webhook_classification(client, make_token):
     token = make_token("u1", "u@test.com", "user")
 

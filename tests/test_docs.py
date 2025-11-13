@@ -1,4 +1,3 @@
-# tests/test_docs.py
 import base64
 import io
 from bson import ObjectId

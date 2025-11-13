@@ -11,9 +11,6 @@ async def metrics(user=Depends(get_current_user), db=Depends(get_db)):
     start_month = datetime(now.year, now.month, 1)
     start_day = datetime(now.year, now.month, now.day)
 
-    # ----------------------------------------------------
-    # ADMIN → GLOBAL METRICS
-    # ----------------------------------------------------
     if user.role in ("admin", "support"):
         docs_total = await db.documents.count_documents({})
         folders_total = await db.tags.count_documents({})
@@ -33,9 +30,7 @@ async def metrics(user=Depends(get_current_user), db=Depends(get_db)):
         })
 
     else:
-        # ----------------------------------------------------
-        # USER / SUPPORT → USER-SPECIFIC METRICS
-        # ----------------------------------------------------
+
         docs_total = await db.documents.count_documents({"ownerId": user.sub})
         folders_total = await db.tags.count_documents({"ownerId": user.sub})
 

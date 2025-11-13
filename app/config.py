@@ -9,7 +9,11 @@ class Settings(BaseSettings):
     CREDITS_PER_ACTION: int = 5
 
     OPENAI_API_KEY: Optional[str] = None
+    ALLOWED_ORIGINS: list[str] = []
 
+    CREATE_DEFAULT_ADMIN: bool = False
+    DEFAULT_ADMIN_EMAIL: str = ""
+    DEFAULT_ADMIN_PASSWORD: str = ""
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

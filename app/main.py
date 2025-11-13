@@ -43,17 +43,18 @@ async def lifespan(app: FastAPI):
     
     await connect_mongo()
 
-    if app.db is not None:
+    if app.db is not None and settings.CREATE_DEFAULT_ADMIN:
         existing_admin = await app.db.users.find_one({"role": "admin"})
         if not existing_admin:
-            hashed_pw = pwd_context.hash("admin123")
+            hashed_pw = pwd_context.hash(settings.DEFAULT_ADMIN_PASSWORD)
             await app.db.users.insert_one({
-                "email": "admin@oneshot.com",
-                "password": hashed_pw,
-                "role": "admin",
-                "createdAt": datetime.now(timezone.utc)
-            })
-            print("👑 Default admin created → admin@oneshot.com / admin123")
+            "email": settings.DEFAULT_ADMIN_EMAIL,
+            "password": hashed_pw,
+            "role": "admin",
+            "createdAt": datetime.now(timezone.utc),
+        })
+
+            
         else:
             print(f"ℹ️ Admin exists: {existing_admin.get('email')}")
 
@@ -65,10 +66,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Senior Backend Assignment", lifespan=lifespan)
 
-ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:8000",
-]
+ALLOWED_ORIGINS = settings.ALLOWED_ORIGINS
 
 app.add_middleware(
     CORSMiddleware,

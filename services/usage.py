@@ -33,7 +33,7 @@ async def get_monthly_usage(user_id: str, db=None):
     })
 
     total = 0
-    async for doc in cursor:      # ✔ SAFE: does NOT use run_in_executor
+    async for doc in cursor:
         total += doc.get("credits", 0)
 
     return total

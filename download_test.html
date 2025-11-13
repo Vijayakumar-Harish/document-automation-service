@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>AI Action Download Test</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      max-width: 700px;
+      margin: 50px auto;
+      padding: 20px;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    textarea {
+      width: 100%;
+      height: 200px;
+      font-family: monospace;
+      margin-bottom: 15px;
+    }
+    button {
+      background: #2563eb;
+      color: white;
+      padding: 10px 15px;
+      margin-right: 10px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    button:hover {
+      background: #1e40af;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>🔍 AI Action Download Test</h2>
+  <p>Paste the JSON response from your <code>/v1/actions/run</code> endpoint below:</p>
+
+  <textarea id="jsonInput" placeholder='Paste JSON response here...'></textarea>
+
+  <div>
+    <button onclick="downloadText()">⬇ Download Text</button>
+    <button onclick="downloadCSV()">⬇ Download CSV</button>
+  </div>
+
+  <script>
+    function downloadBase64File(base64Data, filename, mimeType) {
+      if (!base64Data) {
+        alert("No base64 data found!");
+        return;
+      }
+      const linkSource = `data:${mimeType};base64,${base64Data}`;
+      const downloadLink = document.createElement('a');
+      downloadLink.href = linkSource;
+      downloadLink.download = filename;
+      downloadLink.click();
+    }
+
+    function downloadText() {
+      try {
+        const data = JSON.parse(document.getElementById("jsonInput").value);
+        const base64 = data.downloads?.text;
+        downloadBase64File(base64, "summary.txt", "text/plain");
+      } catch (err) {
+        alert("Invalid JSON or missing text download field.");
+      }
+    }
+
+    function downloadCSV() {
+      try {
+        const data = JSON.parse(document.getElementById("jsonInput").value);
+        const base64 = data.downloads?.csv;
+        downloadBase64File(base64, "report.csv", "text/csv");
+      } catch (err) {
+        alert("Invalid JSON or missing CSV download field.");
+      }
+    }
+  </script>
+
+</body>
+</html>

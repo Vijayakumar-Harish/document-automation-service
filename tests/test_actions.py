@@ -1,4 +1,3 @@
-# tests/test_actions.py
 from bson import ObjectId
 
 async def test_actions_tag_scope_requires_docs(client, test_db, make_token):

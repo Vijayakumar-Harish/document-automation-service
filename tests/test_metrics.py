@@ -1,5 +1,3 @@
-# tests/test_metrics.py
-
 async def test_metrics_endpoint(client, make_token):
     token = make_token("admin1", "a@test.com", "admin")
 

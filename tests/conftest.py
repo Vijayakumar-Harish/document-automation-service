@@ -36,7 +36,7 @@ async def override_db_dependency(test_db):
     """
     Makes FastAPI use the test DB.
     """
-    app.override_db = test_db   # <---- used by get_db()
+    app.override_db = test_db
     yield
     app.override_db = None
 
@@ -54,9 +54,7 @@ async def override_db_dependency(test_db):
     app.dependency_overrides[get_db] = _get_test_db
     yield
     app.dependency_overrides.clear()
-# -----------------------------------------------------------
-# HTTP Client
-# -----------------------------------------------------------
+
 @pytest_asyncio.fixture
 async def client():
     transport = ASGITransport(app=app)
@@ -64,15 +62,13 @@ async def client():
         yield ac
 
 
-# -----------------------------------------------------------
-# JWT Token Helper + Fixtures
-# -----------------------------------------------------------
+
 def _make_token(sub="user1", email="harish@oneshot.com", role="user"):
     payload = {
         "sub": sub,
         "email": email,
         "role": role,
-        "exp": datetime.utcnow() + timedelta(hours=1)   # 🔥 add expiration
+        "exp": datetime.utcnow() + timedelta(hours=1)
     }
     return jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGO)
 

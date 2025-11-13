@@ -1,4 +1,3 @@
-# tests/test_rbac.py
 import pytest
 
 async def test_user_cannot_access_others_docs(client, test_db, make_token):

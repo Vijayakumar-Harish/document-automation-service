@@ -1,4 +1,3 @@
-# tests/test_folders.py
 import pytest
 
 async def test_list_folders(client, make_token):
