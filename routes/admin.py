@@ -16,13 +16,13 @@ async def list_all_users(db=Depends(get_db)):
     List all users (admin only).
     """
     # db = get_db()
-    users = await db.users.find({}, {"email": 1, "role": 1, "created_at": 1}).to_list(None)
+    users = await db.users.find({}, {"email": 1, "role": 1, "createdAt": 1}).to_list(None)
     return [
         {
             "id": str(u["_id"]),
             "email": u["email"],
             "role": u.get("role", "user"),
-            "createdAt": u.get("created_at"),
+            "createdAt": u.get("createdAt"),
         }
         for u in users
     ]
@@ -34,8 +34,9 @@ async def change_user_role(user_id: str, new_role: str, admin=Depends(get_curren
 
     if new_role not in ALLOWED_ROLES:
         raise HTTPException(status_code=400, detail=f"Invalid role: {new_role}")
-
-    if admin.sub == user_id:
+    print(admin.sub, type(admin.sub), "admin.sub")
+    print(user_id, type(user_id), "user_id")
+    if str(admin.sub) == str(user_id):
         raise HTTPException(status_code=400, detail="Admins cannot change their own role")
 
     user = await db.users.find_one({"_id": ObjectId(user_id)})

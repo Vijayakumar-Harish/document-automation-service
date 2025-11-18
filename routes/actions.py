@@ -51,7 +51,28 @@ async def run_actions(payload: ActionRequest, user=Depends(get_current_user),db=
 
     # --- Collect docs in scope ---
     if scope.type == "folder":
-        docs_query = {"folder": scope.name}
+        # Fetch tag for folder name
+        tag_filter = {"name": scope.name}
+        if user.role != "admin":
+            tag_filter["ownerId"] = user.sub
+
+        tag = await db.tags.find_one(tag_filter)
+        if not tag:
+            raise HTTPException(status_code=404, detail="Folder/tag not found")
+
+        # Get documents linked to that tag (primary only)
+        doc_tags = await db.document_tags.find({
+            "tagId": tag["_id"],
+            "isPrimary": True
+        }).to_list(None)
+
+        if not doc_tags:
+            raise HTTPException(status_code=404, detail="No documents found in this folder")
+
+        doc_ids = [ObjectId(d["documentId"]) for d in doc_tags if ObjectId.is_valid(d["documentId"])]
+
+        docs_query = {"_id": {"$in": doc_ids}}
+
 
     elif scope.type == "tag":
         tag_filter = {"name": scope.name}
